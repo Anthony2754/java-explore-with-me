@@ -12,9 +12,13 @@ import java.util.Optional;
 public interface ParticipationRequestRepository extends JpaRepository<ParticipationRequest, Long> {
 
     ParticipationRequest findByRequesterIdAndEventId(Long userId, Long eventId);
+
     List<Optional<ParticipationRequest>> findByRequesterId(Long userId);
+
     Integer countByEventIdAndStatus(Long eventId, ParticipationRequestStatus status);
+
     List<Optional<ParticipationRequest>> findByEventIn(List<Event> userEvents);
+
     @Modifying
     @Query("update ParticipationRequest r set r.status = :newStatus " +
             "where (r.event = :event and r.status = :searchStatus)")

@@ -12,9 +12,13 @@ import java.util.Optional;
 public interface EventRepository extends JpaRepository<Event, Long> {
 
     List<Event> findByInitiatorId(Long userId, Pageable pageable);
+
     List<Event> findByIdAndInitiatorId(Long eventId, Long userId);
+
     List<Event> findByIdIn(List<Long> eventIds);
+
     Event findFirstByCategoryId(Long catId);
+
     @Query(value =
             "SELECT * FROM Events e WHERE (:userId is null or e.initiator_id IN (cast(cast(:userId AS TEXT) AS BIGINT))) " +
             "and (:states is null or e.state IN (cast(:states AS text))) " +
