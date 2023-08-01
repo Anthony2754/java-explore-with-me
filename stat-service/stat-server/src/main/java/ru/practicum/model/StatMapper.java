@@ -1,11 +1,10 @@
 package ru.practicum.model;
 
+import lombok.experimental.UtilityClass;
 import ru.practicum.StatDto;
 
+@UtilityClass
 public class StatMapper {
-
-    private StatMapper() {
-    }
 
     public static StatDto toStatDto(Stat stat) {
         return StatDto.builder()

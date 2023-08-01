@@ -31,7 +31,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public List<CategoryDto> getCategories(int from, int size) {
 
-        log.info("Получение списка категорий: from = {}, size = {}", from ,size);
+        log.info("Получение списка категорий: from = {}, size = {}", from, size);
 
         return categoryRepository.findAll(PageRequest.of(from / size, size))
                 .stream()

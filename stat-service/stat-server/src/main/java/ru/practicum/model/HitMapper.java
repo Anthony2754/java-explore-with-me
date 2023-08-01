@@ -1,14 +1,13 @@
 package ru.practicum.model;
 
+import lombok.experimental.UtilityClass;
 import ru.practicum.HitDto;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+@UtilityClass
 public class HitMapper {
-
-    private HitMapper() {
-    }
 
     public static Hit toHit(HitDto hitDto) {
         return Hit.builder()
