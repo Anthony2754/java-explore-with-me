@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.compilation.dto.CompilationDto;
 import ru.practicum.compilation.dto.CompilationMapper;
 import ru.practicum.compilation.dto.NewCompilationDto;
@@ -27,36 +28,39 @@ public class CompilationServiceImpl implements CompilationService {
     private final CompilationRepository compilationRepository;
     private final EventRepository eventRepository;
 
+    @Transactional
     @Override
     public List<CompilationDto> getCompilations(Boolean pinned, int from, int size) {
 
-        log.info("Получение подборки событий с параметрами: pinned = " + pinned + ", from = " + from + ", size = " + size);
+        log.info("Получение подборки событий с параметрами: pinned = {}, from = {}, size = {}", pinned, from, size);
 
         List<Compilation> compilations;
 
-        if (pinned != null)
+        if (pinned != null) {
             compilations = compilationRepository.findByPinned(pinned, PageRequest.of(from / size, size));
-        else
+        } else {
             compilations = compilationRepository.findAll(PageRequest.of(from / size, size)).getContent();
-
+        }
         return !compilations.isEmpty()
                 ? compilations.stream().map(CompilationMapper::toCompilationDto).collect(Collectors.toList())
                 : Collections.emptyList();
     }
 
+    @Transactional
     @Override
     public CompilationDto getCompilationById(Long id) {
 
-        log.info("Получение подборки событий по id = " + id);
+        log.info("Получение подборки событий по id = {}", id);
 
         return toCompilationDto(compilationRepository.findById(id)
                 .orElseThrow(() -> new CompilationNotFoundException(id)));
     }
 
+    @Transactional
     @Override
     public CompilationDto createCompilation(NewCompilationDto newCompilationDto) {
 
-        log.info("Добавление новой подборки: compilation= " + newCompilationDto);
+        log.info("Добавление новой подборки: compilation= {}", newCompilationDto);
 
         Compilation compilation = toCompilation(newCompilationDto);
 
@@ -67,31 +71,36 @@ public class CompilationServiceImpl implements CompilationService {
         return toCompilationDto(compilationRepository.save(compilation));
     }
 
+    @Transactional
     @Override
     public CompilationDto updateCompilation(Long compId, UpdateCompilationRequestDto updateCompilationRequestDto) {
-        log.info("Обновление подборки: comp_id = " + compId + ", update_compilation = " + updateCompilationRequestDto);
+        log.info("Обновление подборки: comp_id = {}, update_compilation = {}", compId, updateCompilationRequestDto);
         Compilation compilation = compilationRepository.findById(compId).orElseThrow(() -> new CompilationNotFoundException(compId));
 
         if (updateCompilationRequestDto.getTitle() != null) {
             String title = updateCompilationRequestDto.getTitle();
-            if (title.isEmpty() || title.length() > 50)
+            if (title.isEmpty() || title.length() > 50) {
                 throw new RequestValidationException("Название подборки должно содержать от 1 до 50 символов");
+            }
             compilation.setTitle(updateCompilationRequestDto.getTitle());
         }
 
-        if (updateCompilationRequestDto.getPinned() != null)
+        if (updateCompilationRequestDto.getPinned() != null) {
             compilation.setPinned(updateCompilationRequestDto.getPinned());
+        }
 
-        if (updateCompilationRequestDto.getEvents() != null)
+        if (updateCompilationRequestDto.getEvents() != null) {
             compilation.setEvents(eventRepository.findByIdIn(updateCompilationRequestDto.getEvents()));
+        }
 
         return toCompilationDto(compilationRepository.save(compilation));
     }
 
+    @Transactional
     @Override
     public void deleteCompilation(Long compId) {
 
-        log.info("Удаление подборки: comp_id = " + compId);
+        log.info("Удаление подборки: comp_id = {}", compId);
 
         compilationRepository.findById(compId).orElseThrow(() -> new CompilationNotFoundException(compId));
         compilationRepository.deleteById(compId);

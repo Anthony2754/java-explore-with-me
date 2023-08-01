@@ -3,6 +3,7 @@ package ru.practicum.request;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.event.Event;
 import ru.practicum.event.EventRepository;
 import ru.practicum.event.EventState;
@@ -16,7 +17,7 @@ import ru.practicum.request.dto.ParticipationRequestMapper;
 import ru.practicum.user.User;
 import ru.practicum.user.UserRepository;
 
-import javax.transaction.Transactional;
+//import javax.transaction.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,10 +35,11 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
     private final UserRepository userRepository;
     private final EventRepository eventRepository;
 
+    @Transactional
     @Override
     public ParticipationRequestDto createRequestForParticipation(Long userId, Long eventId) {
 
-        log.info("Создание запроса от пользователя на участие в событии: user_id = " + userId + ", event_id = " + eventId);
+        log.info("Создание запроса от пользователя на участие в событии: user_id = {}, event_id = {}", userId, eventId);
 
         User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException(userId));
         Event event = eventRepository.findById(eventId).orElseThrow(() -> new EventNotFoundException(eventId));
@@ -45,22 +47,22 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
         ParticipationRequest existParticipationRequest = participationRequestRepository.findByRequesterIdAndEventId(userId, eventId);
 
         if (existParticipationRequest != null) {
-            log.info("Пользователь с id = " + userId + " не может добавить повторный запрос с id = " + eventId);
+            log.info("Пользователь с id = {} не может добавить повторный запрос с id = {}", userId, eventId);
             throw new ForbiddenException("Попытка создания повторного запроса на участие");
         }
 
         if (event.getInitiator().getId().equals(userId)) {
-            log.info("Пользователь с id = " + userId + " не может добавить запрос на участие в своём событии с id = " + eventId);
+            log.info("Пользователь с id = {} не может добавить запрос на участие в своём событии с id = {}", userId, eventId);
             throw new ForbiddenException("Попытка добавления запроса на участие в собственном событии");
         }
 
         if (event.getState() != EventState.PUBLISHED) {
-            log.info("Пользователь с id = " + userId + " не может участвовать в неопубликованном событии с id = " + eventId);
+            log.info("Пользователь с id = {} не может участвовать в неопубликованном событии с id = {}", userId, eventId);
             throw new ForbiddenException("Попытка добавления запроса на неопубликованное событие");
         }
 
         if (event.getParticipantLimit() != 0 && participationRequestRepository.countByEventIdAndStatus(eventId, ParticipationRequestStatus.CONFIRMED) >= event.getParticipantLimit()) {
-            log.info("Пользователь с id = " + userId + " не может участвовать в событии с id = " + eventId +
+            log.info("Пользователь с id = {} не может участвовать в событии с id = {}", userId, eventId +
                     ", так как достигнуто максимальное количество запросов на участие");
             throw new ForbiddenException("Попытка добавления запроса на участие в событии с максимальным количеством запросов");
         }
@@ -80,10 +82,11 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
         return toParticipationRequestDto(participationRequestRepository.save(newParticipationRequest));
     }
 
+    @Transactional
     @Override
     public ParticipationRequestDto cancelRequestForParticipation(Long userId, Long requestId) {
 
-        log.info("Отмена своего запроса на участие в событии: user_id = " + userId + ", request_id = " + requestId);
+        log.info("Отмена своего запроса на участие в событии: user_id = {}, request_id = {}", userId, requestId);
 
         userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException(userId));
         ParticipationRequest requestToUpdate = participationRequestRepository.getReferenceById(requestId);
@@ -92,6 +95,7 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
         return toParticipationRequestDto(participationRequestRepository.save(requestToUpdate));
     }
 
+    @Transactional
     @Override
     public List<ParticipationRequestDto> getRequestsForParticipation(Long userId) {
 
@@ -107,11 +111,12 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     @Override
     public List<ParticipationRequestDto> getParticipationRequestsForUserEvent(Long userId, Long eventId) {
 
-        log.info("Получение информации о запросах на участие в событии пользователя: user_id = " + userId +
-                ", event_id = " + eventId);
+        log.info("Получение информации о запросах на участие в событии пользователя: user_id = {}, event_id = {}",
+                userId, eventId);
 
         userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException(userId));
         List<Event> userEvents = eventRepository.findByIdAndInitiatorId(eventId, userId);
@@ -124,13 +129,13 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
                 .collect(Collectors.toList());
     }
 
-    @Override
     @Transactional
+    @Override
     public EventRequestStatusUpdateResultDto changeRequestsForParticipationStatus(
             Long userId, Long eventId, EventRequestStatusUpdateRequestDto eventRequestStatusUpdateRequestDto) {
 
         log.info("Изменение статуса заявок на участие в событии пользователем: " +
-                "user_id = " + userId + ", event_id = " + eventId + ", новый статус = " + eventRequestStatusUpdateRequestDto);
+                "user_id = {}, event_id = {}, новый статус = {}", userId, eventId, eventRequestStatusUpdateRequestDto);
 
         userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException(userId));
         Event event = eventRepository.findById(eventId).orElseThrow(() -> new EventNotFoundException(eventId));
@@ -141,53 +146,67 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
                 .rejectedRequests(new ArrayList<>())
                 .build();
 
-        if (!requests.isEmpty()) {
+        if (requests.isEmpty()) {
+            return eventRequestStatusUpdateResultDto;
+        }
 
-            if (ParticipationRequestStatus.valueOf(eventRequestStatusUpdateRequestDto.getStatus()) == ParticipationRequestStatus.CONFIRMED) {
-                int limitParticipants = event.getParticipantLimit();
+        if (ParticipationRequestStatus.valueOf(eventRequestStatusUpdateRequestDto.getStatus()) == ParticipationRequestStatus.CONFIRMED) {
 
-                if (limitParticipants == 0 || !event.isRequestModeration())
-                    throw new ForbiddenException("Запрос отклонен: лимит участников равен 0 или не пройдена модерация");
+            eventRequestStatusUpdateResultDto = checkNotEmptyRequest(event, requests, eventRequestStatusUpdateResultDto);
 
-                Integer countParticipants = participationRequestRepository.countByEventIdAndStatus(event.getId(), ParticipationRequestStatus.CONFIRMED);
+        } else if (ParticipationRequestStatus.valueOf(eventRequestStatusUpdateRequestDto.getStatus()) == ParticipationRequestStatus.REJECTED) {
 
-                if (countParticipants == limitParticipants)
-                    throw new ForbiddenException("Достигнуто максимальное количество заявок на участие");
+            for (ParticipationRequest request : requests) {
 
-                for (ParticipationRequest request : requests) {
-
-                    if (request.getStatus() != ParticipationRequestStatus.PENDING)
-                        throw new ForbiddenException("Статус запроса должен быть PENDING");
-
-                    if (countParticipants < limitParticipants) {
-
-                        request.setStatus(ParticipationRequestStatus.CONFIRMED);
-                        eventRequestStatusUpdateResultDto.getConfirmedRequests().add(toParticipationRequestDto(request));
-                        countParticipants++;
-                    } else {
-                        request.setStatus(ParticipationRequestStatus.REJECTED);
-                        eventRequestStatusUpdateResultDto.getRejectedRequests().add(toParticipationRequestDto(request));
-                    }
-                }
-                participationRequestRepository.saveAll(requests);
-
-                if (countParticipants == limitParticipants) {
-                    participationRequestRepository.updateRequestStatusByEventIdAndStatus(event,
-                            ParticipationRequestStatus.PENDING, ParticipationRequestStatus.REJECTED);
+                if (request.getStatus() != ParticipationRequestStatus.PENDING) {
+                    throw new ForbiddenException("Статус запроса должен быть PENDING");
                 }
 
-            } else if (ParticipationRequestStatus.valueOf(eventRequestStatusUpdateRequestDto.getStatus()) == ParticipationRequestStatus.REJECTED) {
-
-                for (ParticipationRequest request : requests) {
-
-                    if (request.getStatus() != ParticipationRequestStatus.PENDING)
-                        throw new ForbiddenException("Status of request doesn't PENDING");
-
-                    request.setStatus(ParticipationRequestStatus.REJECTED);
-                    eventRequestStatusUpdateResultDto.getRejectedRequests().add(toParticipationRequestDto(request));
-                }
-                participationRequestRepository.saveAll(requests);
+                request.setStatus(ParticipationRequestStatus.REJECTED);
+                eventRequestStatusUpdateResultDto.getRejectedRequests().add(toParticipationRequestDto(request));
             }
+            participationRequestRepository.saveAll(requests);
+        }
+
+        return eventRequestStatusUpdateResultDto;
+    }
+
+    public EventRequestStatusUpdateResultDto checkNotEmptyRequest(Event event, List<ParticipationRequest> requests,
+                                                                  EventRequestStatusUpdateResultDto eventRequestStatusUpdateResultDto) {
+
+        int limitParticipants = event.getParticipantLimit();
+
+        if (limitParticipants == 0 || !event.isRequestModeration()) {
+            throw new ForbiddenException("Запрос отклонен: лимит участников равен 0 или не пройдена модерация");
+        }
+
+        Integer countParticipants = participationRequestRepository.countByEventIdAndStatus(event.getId(), ParticipationRequestStatus.CONFIRMED);
+
+        if (countParticipants == limitParticipants) {
+            throw new ForbiddenException("Достигнуто максимальное количество заявок на участие");
+        }
+
+        for (ParticipationRequest request : requests) {
+
+            if (request.getStatus() != ParticipationRequestStatus.PENDING) {
+                throw new ForbiddenException("Статус запроса должен быть PENDING");
+            }
+
+            if (countParticipants < limitParticipants) {
+
+                request.setStatus(ParticipationRequestStatus.CONFIRMED);
+                eventRequestStatusUpdateResultDto.getConfirmedRequests().add(toParticipationRequestDto(request));
+                countParticipants++;
+            } else {
+                request.setStatus(ParticipationRequestStatus.REJECTED);
+                eventRequestStatusUpdateResultDto.getRejectedRequests().add(toParticipationRequestDto(request));
+            }
+        }
+        participationRequestRepository.saveAll(requests);
+
+        if (countParticipants == limitParticipants) {
+            participationRequestRepository.updateRequestStatusByEventIdAndStatus(event,
+                    ParticipationRequestStatus.PENDING, ParticipationRequestStatus.REJECTED);
         }
         return eventRequestStatusUpdateResultDto;
     }
