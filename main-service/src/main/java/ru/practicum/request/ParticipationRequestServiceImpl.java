@@ -17,7 +17,6 @@ import ru.practicum.request.dto.ParticipationRequestMapper;
 import ru.practicum.user.User;
 import ru.practicum.user.UserRepository;
 
-//import javax.transaction.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
