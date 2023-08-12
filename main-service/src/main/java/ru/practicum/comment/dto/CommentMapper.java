@@ -11,7 +11,7 @@ import static ru.practicum.user.dto.UserMapper.toUserShortDto;
 @UtilityClass
 public class CommentMapper {
 
-    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public static Comment toComment(CommentDto commentDto) {
         return Comment.builder()
@@ -26,8 +26,8 @@ public class CommentMapper {
                 .author(toUserShortDto(comment.getAuthor()))
                 .text(comment.getText())
                 .state(comment.getState().toString())
-                .createdOn(comment.getCreatedOn().format(formatter))
-                .updatedOn(comment.getUpdatedOn() != null ? comment.getUpdatedOn().format(formatter) : null)
+                .createdOn(comment.getCreatedOn().format(FORMATTER))
+                .updatedOn(comment.getUpdatedOn() != null ? comment.getUpdatedOn().format(FORMATTER) : null)
                 .build();
     }
 
